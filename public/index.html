@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>sendnote — private, encrypted notes</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <main class="wrap">
+    <header class="brand">
+      <h1>sendnote</h1>
+      <p class="tag">Encrypted in your browser. The server never sees the note.</p>
+    </header>
+
+    <!-- Compose view -->
+    <section id="compose" class="card" hidden>
+      <textarea id="note-input" placeholder="Write your note…" maxlength="150000" autofocus></textarea>
+
+      <div class="row">
+        <label for="ttl">Expires</label>
+        <select id="ttl">
+          <option value="burn" selected>After it's read (once)</option>
+          <option value="1h">1 hour</option>
+          <option value="1d">1 day</option>
+          <option value="7d">7 days</option>
+        </select>
+      </div>
+
+      <button id="create-btn" class="primary">Encrypt &amp; create link</button>
+      <p id="compose-error" class="error" hidden></p>
+    </section>
+
+    <!-- Result view -->
+    <section id="result" class="card" hidden>
+      <p class="muted">Share this link. It won't be shown again.</p>
+      <div class="link-row">
+        <input id="result-link" type="text" readonly />
+        <button id="copy-btn">Copy</button>
+      </div>
+      <p id="result-note" class="muted small"></p>
+      <button id="new-note-btn" class="ghost">Write another note</button>
+    </section>
+
+    <!-- Reveal view -->
+    <section id="reveal" class="card" hidden>
+      <div id="reveal-gate">
+        <p class="muted" id="reveal-warning">
+          This note will be destroyed the moment you view it. Only open it when you're ready to read it.
+        </p>
+        <button id="reveal-btn" class="primary">View note</button>
+      </div>
+      <div id="reveal-content" hidden>
+        <pre id="revealed-text"></pre>
+        <p id="reveal-status" class="muted small"></p>
+      </div>
+      <p id="reveal-error" class="error" hidden></p>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <span>AES-256-GCM · key never leaves your browser · nothing is stored on disk</span>
+  </footer>
+
+  <script src="/crypto.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>

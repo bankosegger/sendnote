@@ -1,0 +1,13 @@
+{
+  "name": "sendnote",
+  "version": "1.0.0",
+  "description": "Minimal, zero-knowledge encrypted note sharing. Notes are encrypted in the browser; the server only ever stores ciphertext.",
+  "private": true,
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
