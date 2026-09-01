@@ -2,15 +2,20 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>sendnote — private, encrypted notes</title>
+  <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png" />
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
   <main class="wrap">
     <header class="brand">
-      <h1>sendnote</h1>
-      <p class="tag">Encrypted in your browser. The server never sees the note.</p>
+      <div class="logo-lockup">
+        <span class="logo-badge">
+          <img src="/favicon-96x96.png" alt="" class="logo" width="18" height="18" />
+        </span>
+        <h1>sendnote</h1>
+      </div>
     </header>
 
     <!-- Compose view -->
@@ -59,7 +64,8 @@
   </main>
 
   <footer class="foot">
-    <span>AES-256-GCM · key never leaves your browser · nothing is stored on disk</span>
+    <p>AES-256-GCM - Encrypted in your browser. The server never sees the note.</p>
+    <a href="https://github.com/bankosegger/sendnote" target="_blank" rel="noopener">source</a>
   </footer>
 
   <script src="/crypto.js"></script>
