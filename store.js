@@ -20,9 +20,10 @@ const TTL_SECONDS = { burn: 604_800, '1h': 3_600, '1d': 86_400, '7d': 604_800 };
 const burnKey = (id) => `burn:${id}`;
 const ttlKey = (id) => `ttl:${id}`;
 
-async function createNote(id, { ciphertext, iv }, mode) {
+async function createNote(id, { ciphertext, iv, password }, mode) {
   const key = mode === 'burn' ? burnKey(id) : ttlKey(id);
-  await redis.set(key, { ciphertext, iv }, { ex: TTL_SECONDS[mode] });
+  const payload = password ? { ciphertext, iv, password } : { ciphertext, iv };
+  await redis.set(key, payload, { ex: TTL_SECONDS[mode] });
 }
 
 // Burn-after-read notes are looked up with an atomic GETDEL so two

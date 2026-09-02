@@ -62,7 +62,7 @@ const readLimiter = rateLimit({
 
 app.post('/api/notes', createLimiter, async (req, res, next) => {
   try {
-    const { ciphertext, iv, ttl } = req.body || {};
+    const { ciphertext, iv, ttl, password } = req.body || {};
 
     if (typeof ciphertext !== 'string' || typeof iv !== 'string') {
       return res.status(400).json({ error: 'ciphertext and iv are required' });
@@ -74,10 +74,29 @@ app.post('/api/notes', createLimiter, async (req, res, next) => {
       return res.status(400).json({ error: 'ciphertext and iv must be base64' });
     }
 
+    // password is never sent — only the non-secret PBKDF2 salt/iterations
+    // the browser derived the key with, so a later viewer can re-derive it.
+    let passwordMeta;
+    if (password !== undefined) {
+      const { salt, iterations } = password || {};
+      if (
+        typeof salt !== 'string' ||
+        salt.length === 0 ||
+        salt.length > 64 ||
+        !/^[A-Za-z0-9+/]+=*$/.test(salt) ||
+        !Number.isInteger(iterations) ||
+        iterations < 100_000 ||
+        iterations > 2_000_000
+      ) {
+        return res.status(400).json({ error: 'invalid password metadata' });
+      }
+      passwordMeta = { salt, iterations };
+    }
+
     const mode = TTL_OPTIONS.has(ttl) ? ttl : 'burn';
     const id = crypto.randomBytes(16).toString('base64url');
 
-    await store.createNote(id, { ciphertext, iv }, mode);
+    await store.createNote(id, { ciphertext, iv, password: passwordMeta }, mode);
 
     res.json({ id });
   } catch (err) {

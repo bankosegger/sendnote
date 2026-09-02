@@ -36,6 +36,22 @@
         </select>
       </div>
 
+      <div class="row">
+        <label class="checkbox-label">
+          <input type="checkbox" id="password-toggle" />
+          Protect with a password
+        </label>
+      </div>
+      <div id="password-field" class="password-field" hidden>
+        <input
+          type="password"
+          id="note-password"
+          placeholder="Password"
+          autocomplete="new-password"
+        />
+        <button type="button" id="password-visibility-btn" class="ghost">Show</button>
+      </div>
+
       <button id="create-btn" class="primary">Encrypt &amp; create link</button>
       <p id="compose-error" class="error" hidden></p>
     </section>
@@ -56,6 +72,18 @@
       <div id="reveal-gate">
         <p class="muted" id="reveal-warning">
           This note will be destroyed the moment you view it. Only open it when you're ready to read it.
+        </p>
+        <div id="reveal-password-field" class="password-field" hidden>
+          <input
+            type="password"
+            id="reveal-password"
+            placeholder="Password"
+            autocomplete="current-password"
+          />
+          <button type="button" id="reveal-password-visibility-btn" class="ghost">Show</button>
+        </div>
+        <p class="muted small" id="reveal-password-hint" hidden>
+          If this is a read-once link, an incorrect password will destroy it too.
         </p>
         <button id="reveal-btn" class="primary">View note</button>
       </div>

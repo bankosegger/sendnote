@@ -158,6 +158,47 @@ select {
   color: var(--text);
 }
 
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--invert-bg);
+  cursor: pointer;
+}
+
+.password-field[hidden] {
+  display: none;
+}
+
+.password-field {
+  display: flex;
+  gap: 10px;
+}
+
+.password-field input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 14px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+}
+
+.password-field button {
+  flex-shrink: 0;
+  padding: 9px 14px;
+  font-size: 12px;
+}
+
 button {
   font: inherit;
   font-size: 13px;
@@ -317,6 +358,12 @@ button.ghost:hover {
   select {
     width: 100%;
     padding: 10px 12px;
+  }
+
+  .password-field button {
+    width: auto;
+    padding: 9px 14px;
+    font-size: 12px;
   }
 
   .link-row {
