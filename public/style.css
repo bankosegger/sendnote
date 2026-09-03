@@ -49,6 +49,11 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+a {
+  color: var(--text);
+  text-decoration: none;
+}
+
 .wrap {
   width: 100%;
   max-width: 440px;
@@ -316,6 +321,86 @@ button.ghost:hover {
 
 .foot a:hover {
   color: var(--text);
+}
+
+.page-how-it-works.wrap {
+  max-width: 560px;
+  gap: 16px;
+}
+
+.prose h2 {
+  font-size: 15px;
+  margin: 0;
+  font-weight: 600;
+}
+
+.prose p {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.prose p:last-child {
+  margin-bottom: 0;
+}
+
+.prose ol,
+.prose ul {
+  margin: 0 0 10px;
+  padding-left: 18px;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.prose ul:last-child,
+.prose ol:last-child {
+  margin-bottom: 0;
+}
+
+.prose li + li {
+  margin-top: 6px;
+}
+
+.prose li strong {
+  color: var(--text);
+}
+
+.prose code {
+  font-family: var(--mono);
+  font-size: 12px;
+  background: var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+.url-sample {
+  font-family: var(--mono);
+  font-size: 12px;
+  background: var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin: 0 0 12px;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.back-link {
+  display: block;
+  text-align: center;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  text-decoration: none;
+  color: var(--text);
+  font-size: 13px;
+  transition: border-color 0.12s ease, background-color 0.12s ease;
+}
+
+.back-link:hover {
+  border-color: var(--text);
+  background: var(--border);
 }
 
 @media (max-width: 480px) {

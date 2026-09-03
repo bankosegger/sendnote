@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>How it works — sendnote</title>
+  <meta name="description"
+    content="How sendnote encrypts your note in the browser, what the server sees, and how links expire." />
+  <link rel="icon" type="image/png" sizes="96x96" href="/favicons/favicon-96x96.png" />
+  <link rel="icon" type="image/svg+xml" href="/favicons/favicon.svg" />
+  <link rel="shortcut icon" href="/favicon.ico" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicons/apple-touch-icon.png" />
+  <link rel="manifest" href="/favicons/site.webmanifest" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+
+<body>
+  <main class="wrap page-how-it-works">
+    <header class="brand">
+      <div class="logo-lockup">
+        <span class="logo-badge">
+          <img src="/favicons/favicon-96x96.png" alt="" class="logo" width="18" height="18" />
+        </span>
+        <h1>sendnote</h1>
+      </div>
+      <p class="tag">How it works</p>
+    </header>
+
+    <a href="/" class="back-link">Back to sending</a>
+
+    <section class="card prose">
+
+      <h2>Encrypted before it leaves your browser</h2>
+      <p>
+        When you write a note, your browser generates a random AES-256 key and encrypts the
+        text locally using the Web Crypto API. Only the resulting ciphertext is sent to the
+        server — the plaintext never leaves your device.
+      </p>
+    </section>
+
+    <section class="card prose">
+      <h2>The link has two parts</h2>
+      <p class="url-sample">https://sendnote.example/n/&lt;id&gt;#&lt;key&gt;</p>
+      <ul>
+        <li><code>/n/&lt;id&gt;</code> is sent to the server — a lookup id for the stored ciphertext, meaningless
+          without the key.</li>
+        <li><code>#&lt;key&gt;</code> is the decryption key. Browsers never send anything after a <code>#</code> to the
+          server, so it's only ever seen by whoever opens the link.</li>
+      </ul>
+      <p>
+        This is called <a href="https://developer.mozilla.org/en-US/docs/Web/URI/Reference/Fragment" target="_blank"
+          rel="noopener">fragment identifier</a> and is a standard part of URLs.
+      </p>
+      <p>
+        Opening the link makes your browser fetch the ciphertext for that id, then decrypt it
+        locally using the key from the fragment. The server only ever handles ciphertext — it
+        can't read your note even if it wanted to.
+      </p>
+    </section>
+
+    <section class="card prose">
+      <h2>Optional password instead</h2>
+      <p>
+        If you protect a note with a password, the key is derived from that password
+        (PBKDF2, 250,000 iterations) instead of being generated randomly — so it isn't carried
+        in the URL at all. The link becomes <code>/n/&lt;id&gt;?p=1</code>, and whoever opens it
+        needs the password you shared separately to decrypt the note.
+      </p>
+    </section>
+
+    <section class="card prose">
+      <h2>Notes don't stick around</h2>
+      <p>Every note has an expiry you choose when you create it: read once (deleted the moment
+        it's opened), or 1 hour / 1 day / 7 days (deleted automatically after that time,
+        whether or not it was read). Notes are stored in Redis with a TTL matching the expiry,
+        so nothing lingers past its own expiration and nothing is ever written to disk in
+        plaintext.
+      </p>
+    </section>
+
+    <a href="/" class="back-link">Back to sending</a>
+  </main>
+
+  <footer class="foot">
+    <p>AES-256-GCM - Encrypted in your browser. The server never sees the note.</p>
+    <a href="https://github.com/bankosegger/sendnote" target="_blank" rel="noopener">source</a>
+  </footer>
+</body>
+
+</html>
