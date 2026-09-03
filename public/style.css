@@ -118,6 +118,10 @@ body {
   gap: 20px;
 }
 
+#reveal-content[hidden] {
+  display: none;
+}
+
 textarea {
   width: 100%;
   min-height: 180px;
