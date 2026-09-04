@@ -11,7 +11,11 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 const MAX_CIPHERTEXT_B64_LEN = 200_000; // ~150KB plaintext ceiling per note
+const IV_B64_LEN = 16; // base64 length of the client's 12-byte AES-GCM IV (public/crypto.js)
+const SALT_B64_LEN = 24; // base64 length of the client's 16-byte PBKDF2 salt (public/crypto.js)
 const TTL_OPTIONS = new Set(['burn', '1h', '1d', '7d']);
+const NOTE_ID_RE = /^[A-Za-z0-9_-]{22}$/; // shape of crypto.randomBytes(16).toString('base64url')
+const ALLOWED_NOTE_BODY_KEYS = new Set(['ciphertext', 'iv', 'ttl', 'password']);
 
 // Set TRUST_PROXY=1 when running behind a reverse proxy (nginx, Caddy, etc.)
 // so req.ip / rate limiting see the real client IP from X-Forwarded-For.
@@ -62,7 +66,13 @@ const readLimiter = rateLimit({
 
 app.post('/api/notes', createLimiter, async (req, res, next) => {
   try {
-    const { ciphertext, iv, ttl, password } = req.body || {};
+    const body = req.body || {};
+
+    if (Object.keys(body).some((key) => !ALLOWED_NOTE_BODY_KEYS.has(key))) {
+      return res.status(400).json({ error: 'unexpected field in request body' });
+    }
+
+    const { ciphertext, iv, ttl, password } = body;
 
     if (typeof ciphertext !== 'string' || typeof iv !== 'string') {
       return res.status(400).json({ error: 'ciphertext and iv are required' });
@@ -70,7 +80,13 @@ app.post('/api/notes', createLimiter, async (req, res, next) => {
     if (ciphertext.length === 0 || ciphertext.length > MAX_CIPHERTEXT_B64_LEN) {
       return res.status(400).json({ error: 'note is empty or too large' });
     }
-    if (!/^[A-Za-z0-9+/]+=*$/.test(ciphertext) || !/^[A-Za-z0-9+/]+=*$/.test(iv)) {
+    // The client always generates a 12-byte AES-GCM IV (crypto.js), which is
+    // exactly 16 base64 characters with no padding, so nobody (including A.) 
+    // can send Base64-encoded images as IV.
+    if (iv.length !== IV_B64_LEN) {
+      return res.status(400).json({ error: 'invalid iv' });
+    }
+    if (!/^[A-Za-z0-9+/]+=*$/.test(ciphertext) || !/^[A-Za-z0-9+/]+$/.test(iv)) {
       return res.status(400).json({ error: 'ciphertext and iv must be base64' });
     }
 
@@ -81,8 +97,7 @@ app.post('/api/notes', createLimiter, async (req, res, next) => {
       const { salt, iterations } = password || {};
       if (
         typeof salt !== 'string' ||
-        salt.length === 0 ||
-        salt.length > 64 ||
+        salt.length !== SALT_B64_LEN ||
         !/^[A-Za-z0-9+/]+=*$/.test(salt) ||
         !Number.isInteger(iterations) ||
         iterations < 100_000 ||
@@ -106,6 +121,9 @@ app.post('/api/notes', createLimiter, async (req, res, next) => {
 
 app.get('/api/notes/:id', readLimiter, async (req, res, next) => {
   try {
+    if (!NOTE_ID_RE.test(req.params.id)) {
+      return res.status(404).json({ error: 'not found' });
+    }
     const note = await store.consumeNote(req.params.id);
     if (!note) return res.status(404).json({ error: 'not found' });
     res.json(note);
