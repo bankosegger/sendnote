@@ -7,5 +7,6 @@
       "config": { "includeFiles": "public/**" }
     }
   ],
-  "routes": [{ "src": "/(.*)", "dest": "server.js" }]
+  "routes": [{ "src": "/(.*)", "dest": "server.js" }],
+  "crons": [{ "path": "/api/cron/cleanup-images", "schedule": "0 3 * * *" }]
 }

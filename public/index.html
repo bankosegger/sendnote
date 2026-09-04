@@ -1,17 +1,21 @@
 <!doctype html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>sendnote — private, encrypted notes</title>
-  <meta name="description" content="Write a note, it's encrypted in your browser (AES-256-GCM), and you get a link back. The server only ever sees ciphertext." />
+  <meta name="description"
+    content="Write a note, it's encrypted in your browser (AES-256-GCM), and you get a link back. The server only ever sees ciphertext." />
   <meta property="og:type" content="website" />
   <meta property="og:title" content="sendnote — private, encrypted notes" />
-  <meta property="og:description" content="Write a note, it's encrypted in your browser (AES-256-GCM), and you get a link back. The server only ever sees ciphertext." />
+  <meta property="og:description"
+    content="Write a note, it's encrypted in your browser (AES-256-GCM), and you get a link back. The server only ever sees ciphertext." />
   <meta property="og:image" content="/favicons/web-app-manifest-512x512.png" />
   <meta name="twitter:card" content="summary" />
   <meta name="twitter:title" content="sendnote — private, encrypted notes" />
-  <meta name="twitter:description" content="Write a note, it's encrypted in your browser (AES-256-GCM), and you get a link back. The server only ever sees ciphertext." />
+  <meta name="twitter:description"
+    content="Write a note, it's encrypted in your browser (AES-256-GCM), and you get a link back. The server only ever sees ciphertext." />
   <meta name="twitter:image" content="/favicons/web-app-manifest-512x512.png" />
   <link rel="icon" type="image/png" sizes="96x96" href="/favicons/favicon-96x96.png" />
   <link rel="icon" type="image/svg+xml" href="/favicons/favicon.svg" />
@@ -20,15 +24,16 @@
   <link rel="manifest" href="/favicons/site.webmanifest" />
   <link rel="stylesheet" href="/style.css" />
 </head>
+
 <body>
   <main class="wrap">
     <header class="brand">
-      <div class="logo-lockup">
+      <a href="/" class="logo-lockup">
         <span class="logo-badge">
           <img src="/favicons/favicon-96x96.png" alt="" class="logo" width="18" height="18" />
         </span>
         <h1>sendnote</h1>
-      </div>
+      </a>
     </header>
 
     <!-- Compose view -->
@@ -52,16 +57,23 @@
         </label>
       </div>
       <div id="password-field" class="password-field" hidden>
-        <input
-          type="password"
-          id="note-password"
-          placeholder="Password"
-          autocomplete="new-password"
-        />
+        <input type="password" id="note-password" placeholder="Password" autocomplete="new-password" />
         <button type="button" id="password-visibility-btn" class="ghost">Show</button>
       </div>
 
-      <button id="create-btn" class="primary">Encrypt &amp; create link</button>
+      <div class="row">
+        <label for="note-image">Image (optional)</label>
+        <input type="file" id="note-image" accept="image/*" />
+      </div>
+      <div id="note-image-preview-wrap" class="image-preview-wrap" hidden>
+        <img id="note-image-preview" class="image-preview" alt="Selected image preview" />
+        <button type="button" id="remove-image-btn" class="image-remove-btn" aria-label="Remove image">✕</button>
+      </div>
+
+      <button id="create-btn" class="primary">
+        <span class="spinner" id="create-btn-spinner" hidden></span>
+        <span id="create-btn-label">Encrypt &amp; create link</span>
+      </button>
       <p id="compose-error" class="error" hidden></p>
     </section>
 
@@ -83,21 +95,24 @@
           This note will be destroyed the moment you view it. Only open it when you're ready to read it.
         </p>
         <div id="reveal-password-field" class="password-field" hidden>
-          <input
-            type="password"
-            id="reveal-password"
-            placeholder="Password"
-            autocomplete="current-password"
-          />
+          <input type="password" id="reveal-password" placeholder="Password" autocomplete="current-password" />
           <button type="button" id="reveal-password-visibility-btn" class="ghost">Show</button>
         </div>
         <p class="muted small" id="reveal-password-hint" hidden>
           If this is a read-once link, an incorrect password will destroy it too.
         </p>
-        <button id="reveal-btn" class="primary">View note</button>
+        <button id="reveal-btn" class="primary">
+          <span class="spinner" id="reveal-btn-spinner" hidden></span>
+          <span id="reveal-btn-label">View note</span>
+        </button>
       </div>
       <div id="reveal-content" hidden>
         <pre id="revealed-text"></pre>
+        <p id="revealed-image-loading" class="muted small" hidden>
+          <span class="spinner" id="revealed-image-spinner"></span>
+          Loading attached image…
+        </p>
+        <img id="revealed-image" class="image-preview" hidden alt="Attached image" />
         <p id="reveal-status" class="muted small"></p>
       </div>
       <p id="reveal-error" class="error" hidden></p>
@@ -114,4 +129,5 @@
   <script src="/crypto.js"></script>
   <script src="/app.js"></script>
 </body>
+
 </html>

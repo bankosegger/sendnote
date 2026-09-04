@@ -68,11 +68,12 @@ a {
 }
 
 .logo-lockup {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   margin: 0 0 10px;
+  color: var(--text);
 }
 
 .logo-badge {
@@ -94,6 +95,7 @@ a {
   font-family: var(--mono);
   letter-spacing: -0.02em;
   margin: 0;
+  color: var(--text);
 }
 
 .tag {
@@ -123,6 +125,7 @@ a {
   gap: 20px;
 }
 
+#reveal-gate[hidden],
 #reveal-content[hidden] {
   display: none;
 }
@@ -155,6 +158,10 @@ input:focus {
   gap: 10px;
   font-size: 12px;
   color: var(--muted);
+}
+
+.row > label {
+  flex-shrink: 0;
 }
 
 select {
@@ -234,6 +241,29 @@ button.primary:disabled {
   cursor: default;
 }
 
+.spinner[hidden] {
+  display: none;
+}
+
+.spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-right: 7px;
+  vertical-align: -2px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  opacity: 0.6;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 button.ghost {
   background: transparent;
   border-color: var(--border);
@@ -287,6 +317,83 @@ button.ghost:hover {
   color: var(--error);
   font-size: 13px;
   margin: 0;
+}
+
+input[type="file"] {
+  font: inherit;
+  font-size: 12px;
+  color: var(--muted);
+  max-width: 100%;
+}
+
+input[type="file"]::file-selector-button,
+input[type="file"]::-webkit-file-upload-button {
+  appearance: none;
+  -webkit-appearance: none;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 7px 12px;
+  margin-right: 10px;
+  cursor: pointer;
+  transition: border-color 0.12s ease;
+}
+
+input[type="file"]::file-selector-button:hover,
+input[type="file"]::-webkit-file-upload-button:hover {
+  border-color: var(--text);
+}
+
+.image-preview[hidden] {
+  display: none;
+}
+
+.image-preview {
+  display: block;
+  width: 100%;
+  max-height: 400px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  object-fit: contain;
+}
+
+.image-preview-wrap[hidden] {
+  display: none;
+}
+
+.image-preview-wrap {
+  position: relative;
+  display: block;
+}
+
+.image-preview-wrap .image-preview {
+  display: block;
+}
+
+.image-remove-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1;
+}
+
+.image-remove-btn:hover {
+  border-color: var(--text);
 }
 
 #revealed-text {
@@ -447,6 +554,10 @@ button.ghost:hover {
   select {
     width: 100%;
     padding: 10px 12px;
+  }
+
+  input[type="file"] {
+    width: 100%;
   }
 
   .password-field button {

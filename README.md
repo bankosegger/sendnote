@@ -5,13 +5,17 @@ your browser (AES-256-GCM), and you get a link back. The server only ever
 sees ciphertext — the decryption key lives in the URL fragment, which never
 gets sent over the network. Notes are stored in Redis with a TTL matching
 whatever expiry you picked, so nothing lingers past its own expiration and
-nothing is ever written in plaintext anywhere.
+nothing is ever written in plaintext anywhere. You can also attach an image,
+encrypted client-side the same way and stored in Vercel Blob rather than
+Redis (a Redis value has size limits that make it a poor fit for images).
 
 ## Running it locally
 
 You need a Redis database — Upstash's free tier works well and is REST-based,
 so there's nothing to install locally. Create one, copy `.env.example` to
-`.env`, and fill in the URL/token it gives you. Then:
+`.env`, and fill in the URL/token it gives you. Image attachments also need a
+Vercel Blob store (`BLOB_READ_WRITE_TOKEN`) — the app runs fine without one,
+you just won't be able to attach images. Then:
 
 ```
 npm install
@@ -21,17 +25,23 @@ npm start
 Open `http://localhost:3000`.
 
 Other optional env vars: `PORT` (default 3000), `CREATE_RATE_LIMIT` /
-`READ_RATE_LIMIT` (per-IP limits, default 30 creates/15min and 60 reads/min),
-and `TRUST_PROXY=1` if you're putting it behind a reverse proxy.
+`READ_RATE_LIMIT` / `IMAGE_RATE_LIMIT` (per-IP limits, default 30 creates and
+20 image uploads per 15min, 60 reads/min), `CRON_SECRET` (authenticates the
+image-cleanup cron endpoint, see below), and `TRUST_PROXY=1` if you're
+putting it behind a reverse proxy.
 
 ## Deploying to Vercel
 
 1. In your Vercel project, go to Storage → add a Redis database (Marketplace
    → Upstash for Redis, or Vercel KV if that's still offered on your
-   account). Vercel wires the credentials into your project's env vars
-   automatically — no manual copying needed in production.
+   account), and add a Blob store for image attachments. Vercel wires the
+   credentials into your project's env vars automatically — no manual
+   copying needed in production.
 2. Push. `vercel.json` in this repo tells Vercel to run the whole app as one
-   function (`server.js`), with `public/` bundled alongside it.
+   function (`server.js`), with `public/` bundled alongside it. It also
+   registers a daily cron (`/api/cron/cleanup-images`) that deletes any
+   blob whose note has expired — set `CRON_SECRET` in the project's env vars
+   so nothing but Vercel Cron can trigger it.
 3. For local dev against the same database, run `vercel env pull .env` (or
    just copy the values from the dashboard into `.env` yourself).
 

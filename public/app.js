@@ -1,6 +1,70 @@
 (() => {
   const $ = (id) => document.getElementById(id);
 
+  const MAX_IMAGE_BYTES = 8 * 1024 * 1024; // must match server.js
+  const IMAGE_MAX_DIMENSION = 2000;
+  const IMAGE_JPEG_QUALITY = 0.85;
+  const IMAGE_SKIP_DOWNSCALE_BELOW_BYTES = 1.5 * 1024 * 1024; // not worth the CPU/quality cost below this
+
+  // Large photos (phone cameras routinely produce 5-8MB files) dominate
+  // upload time, especially on a slow uplink. Downscale/recompress before
+  // encrypting so a typical photo shrinks to a few hundred KB. GIFs are left
+  // alone since a canvas redraw would collapse them to their first frame.
+  async function maybeDownscaleImage(file) {
+    if (file.type === 'image/gif' || file.size < IMAGE_SKIP_DOWNSCALE_BELOW_BYTES) return file;
+
+    let bitmap;
+    try {
+      bitmap = await createImageBitmap(file);
+      const scale = Math.min(1, IMAGE_MAX_DIMENSION / Math.max(bitmap.width, bitmap.height));
+      if (scale >= 1) return file;
+
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(bitmap.width * scale);
+      canvas.height = Math.round(bitmap.height * scale);
+      const ctx = canvas.getContext('2d');
+      // Flatten transparency to white before JPEG encoding (which has no alpha channel).
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', IMAGE_JPEG_QUALITY));
+      return blob && blob.size < file.size ? blob : file;
+    } catch {
+      return file; // decode/canvas failure - fall back to uploading the original
+    } finally {
+      bitmap?.close?.();
+    }
+  }
+
+  // fetch() has no upload progress event, so use XHR for the one request
+  // large enough (an encrypted image) for progress feedback to matter.
+  function uploadWithProgress(url, body, onProgress) {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', url);
+      xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable) onProgress(e.loaded / e.total);
+      });
+      xhr.onload = () => {
+        let parsed = {};
+        try {
+          parsed = JSON.parse(xhr.responseText);
+        } catch {
+          // ignore - handled by the status check below
+        }
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(parsed);
+        } else {
+          reject(new Error(parsed.error || 'Failed to upload image.'));
+        }
+      };
+      xhr.onerror = () => reject(new Error('Failed to upload image.'));
+      xhr.send(body);
+    });
+  }
+
   const composeSection = $('compose');
   const resultSection = $('result');
   const revealSection = $('reveal');
@@ -24,6 +88,12 @@
     const passwordField = $('password-field');
     const passwordInput = $('note-password');
     const passwordVisibilityBtn = $('password-visibility-btn');
+    const imageInput = $('note-image');
+    const imagePreviewWrap = $('note-image-preview-wrap');
+    const imagePreview = $('note-image-preview');
+    const removeImageBtn = $('remove-image-btn');
+    const createBtnLabel = $('create-btn-label');
+    const createBtnSpinner = $('create-btn-spinner');
 
     passwordToggle.addEventListener('change', () => {
       passwordField.hidden = !passwordToggle.checked;
@@ -38,12 +108,43 @@
       togglePasswordVisibility(passwordInput, passwordVisibilityBtn);
     });
 
+    imageInput.addEventListener('change', () => {
+      errorEl.hidden = true;
+      const file = imageInput.files[0];
+      if (!file) {
+        resetImagePicker();
+        return;
+      }
+      if (!file.type.startsWith('image/')) {
+        showError(errorEl, 'That file is not an image.');
+        resetImagePicker();
+        return;
+      }
+      if (file.size > MAX_IMAGE_BYTES) {
+        showError(errorEl, `Image is too large (max ${Math.floor(MAX_IMAGE_BYTES / 1024 / 1024)}MB).`);
+        resetImagePicker();
+        return;
+      }
+      imagePreview.src = URL.createObjectURL(file);
+      imagePreviewWrap.hidden = false;
+    });
+
+    removeImageBtn.addEventListener('click', () => resetImagePicker());
+
+    function resetImagePicker() {
+      imageInput.value = '';
+      if (imagePreview.src) URL.revokeObjectURL(imagePreview.src);
+      imagePreview.src = '';
+      imagePreviewWrap.hidden = true;
+    }
+
     createBtn.addEventListener('click', async () => {
       const text = input.value;
+      const imageFile = imageInput.files[0];
       errorEl.hidden = true;
 
-      if (!text.trim()) {
-        showError(errorEl, 'Write something first.');
+      if (!text.trim() && !imageFile) {
+        showError(errorEl, 'Write something or attach an image first.');
         return;
       }
 
@@ -56,13 +157,36 @@
       }
 
       createBtn.disabled = true;
-      createBtn.textContent = 'Encrypting…';
+      createBtnSpinner.hidden = false;
+      createBtnLabel.textContent = 'Encrypting…';
 
       try {
-        const { ciphertextB64, ivB64, keyFragment, password: passwordMeta } = await SendNoteCrypto.encrypt(
-          text,
-          usePassword ? password : undefined
-        );
+        const {
+          ciphertextB64,
+          ivB64,
+          keyFragment,
+          password: passwordMeta,
+          key,
+        } = await SendNoteCrypto.encrypt(text, usePassword ? password : undefined);
+
+        let imageMeta;
+        if (imageFile) {
+          const uploadFile = await maybeDownscaleImage(imageFile);
+          const bytes = await uploadFile.arrayBuffer();
+          const { ciphertext: imageCiphertext, ivB64: imageIvB64 } = await SendNoteCrypto.encryptBytes(bytes, key);
+
+          createBtnLabel.textContent = 'Uploading image… 0%';
+          const { pathname } = await uploadWithProgress(
+            `/api/images?burn=${ttl.value === 'burn' ? '1' : '0'}`,
+            imageCiphertext,
+            (fraction) => {
+              createBtnLabel.textContent = `Uploading image… ${Math.round(fraction * 100)}%`;
+            }
+          );
+          imageMeta = { pathname, iv: imageIvB64 };
+        }
+
+        createBtnLabel.textContent = 'Encrypting…';
 
         const res = await fetch('/api/notes', {
           method: 'POST',
@@ -72,6 +196,7 @@
             iv: ivB64,
             ttl: ttl.value,
             ...(passwordMeta ? { password: passwordMeta } : {}),
+            ...(imageMeta ? { image: imageMeta } : {}),
           }),
         });
 
@@ -89,13 +214,15 @@
         passwordToggle.checked = false;
         passwordField.hidden = true;
         passwordInput.value = '';
+        resetImagePicker();
         composeSection.hidden = true;
         showResult(link, ttl.value, Boolean(passwordMeta));
       } catch (err) {
         showError(errorEl, err.message || 'Something went wrong.');
       } finally {
         createBtn.disabled = false;
-        createBtn.textContent = 'Encrypt & create link';
+        createBtnSpinner.hidden = true;
+        createBtnLabel.textContent = 'Encrypt & create link';
       }
     });
   }
@@ -141,7 +268,11 @@
     const gate = $('reveal-gate');
     const content = $('reveal-content');
     const revealBtn = $('reveal-btn');
+    const revealBtnLabel = $('reveal-btn-label');
+    const revealBtnSpinner = $('reveal-btn-spinner');
     const revealedText = $('revealed-text');
+    const revealedImage = $('revealed-image');
+    const revealedImageLoading = $('revealed-image-loading');
     const statusEl = $('reveal-status');
     const errorEl = $('reveal-error');
     const passwordField = $('reveal-password-field');
@@ -171,7 +302,8 @@
       }
 
       revealBtn.disabled = true;
-      revealBtn.textContent = 'Loading…';
+      revealBtnLabel.textContent = 'Loading…';
+      revealBtnSpinner.hidden = false;
 
       let note;
       try {
@@ -188,12 +320,13 @@
         showError(errorEl, err.message || 'Failed to load note.');
         gate.hidden = true;
         revealBtn.disabled = false;
-        revealBtn.textContent = 'View note';
+        revealBtnLabel.textContent = 'View note';
+        revealBtnSpinner.hidden = true;
         return;
       }
 
       try {
-        const plaintext = note.password
+        const { plaintext, key } = note.password
           ? await SendNoteCrypto.decryptWithPassword(
               note.ciphertext,
               note.iv,
@@ -206,12 +339,32 @@
         gate.hidden = true;
         content.hidden = false;
         revealedText.textContent = plaintext;
+        revealedText.hidden = !plaintext;
         statusEl.textContent = note.burnAfterRead
           ? 'This note has been destroyed. It cannot be viewed again.'
           : 'This note will still expire on its own.';
 
         // Strip the key from the address bar so it can't linger in history/screenshots.
         history.replaceState(null, '', location.pathname);
+
+        // The note text is already revealed at this point, so a failure here
+        // (unlike above) shouldn't re-trigger the gate or an "incorrect
+        // password" message — just report the image separately.
+        if (note.image) {
+          revealedImageLoading.hidden = false;
+          try {
+            const imgRes = await fetch(`/api/images?p=${encodeURIComponent(note.image.pathname)}`);
+            if (!imgRes.ok) throw new Error();
+            const encryptedBytes = await imgRes.arrayBuffer();
+            const decryptedBytes = await SendNoteCrypto.decryptBytes(encryptedBytes, note.image.iv, key);
+            revealedImage.src = URL.createObjectURL(new Blob([decryptedBytes]));
+            revealedImage.hidden = false;
+          } catch {
+            showError(errorEl, 'Failed to load the attached image.');
+          } finally {
+            revealedImageLoading.hidden = true;
+          }
+        }
       } catch (err) {
         showError(
           errorEl,
@@ -222,7 +375,8 @@
         gate.hidden = true;
       } finally {
         revealBtn.disabled = false;
-        revealBtn.textContent = 'View note';
+        revealBtnLabel.textContent = 'View note';
+        revealBtnSpinner.hidden = true;
       }
     });
   }

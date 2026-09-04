@@ -56,6 +56,10 @@ const SendNoteCrypto = (() => {
   // so it never travels in the URL — only the non-secret salt/iterations do.
   // Without one: a random key is generated and carried in the URL fragment,
   // which browsers never send to the server.
+  //
+  // The returned `key` (a live CryptoKey, never serialized) lets a caller
+  // encrypt an attached image with the same note key under its own fresh IV,
+  // instead of minting and distributing a second secret.
   async function encrypt(plaintext, password) {
     const iv = crypto.getRandomValues(new Uint8Array(12));
     const encoded = new TextEncoder().encode(plaintext);
@@ -70,6 +74,7 @@ const SendNoteCrypto = (() => {
         ivB64: bufToB64(iv),
         keyFragment: null,
         password: { salt: bufToB64(salt), iterations: PBKDF2_ITERATIONS },
+        key,
       };
     }
 
@@ -82,6 +87,7 @@ const SendNoteCrypto = (() => {
       ivB64: bufToB64(iv),
       keyFragment: bufToB64url(rawKey),
       password: null,
+      key,
     };
   }
 
@@ -91,7 +97,7 @@ const SendNoteCrypto = (() => {
     const iv = new Uint8Array(b64ToBuf(ivB64));
     const ciphertext = b64ToBuf(ciphertextB64);
     const plainBuf = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext);
-    return new TextDecoder().decode(plainBuf);
+    return { plaintext: new TextDecoder().decode(plainBuf), key };
   }
 
   async function decryptWithPassword(ciphertextB64, ivB64, password, saltB64, iterations) {
@@ -100,8 +106,21 @@ const SendNoteCrypto = (() => {
     const iv = new Uint8Array(b64ToBuf(ivB64));
     const ciphertext = b64ToBuf(ciphertextB64);
     const plainBuf = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext);
-    return new TextDecoder().decode(plainBuf);
+    return { plaintext: new TextDecoder().decode(plainBuf), key };
   }
 
-  return { encrypt, decrypt, decryptWithPassword };
+  // Binary counterparts of encrypt/decrypt for an attached image, reusing an
+  // already-derived note key (see `encrypt`/`decrypt` above) under a fresh IV.
+  async function encryptBytes(arrayBuffer, key) {
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, arrayBuffer);
+    return { ciphertext, ivB64: bufToB64(iv) };
+  }
+
+  async function decryptBytes(ciphertext, ivB64, key) {
+    const iv = new Uint8Array(b64ToBuf(ivB64));
+    return crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext);
+  }
+
+  return { encrypt, decrypt, decryptWithPassword, encryptBytes, decryptBytes };
 })();
