@@ -36,35 +36,40 @@
       </a>
     </header>
 
-    <!-- Compose view -->
-    <section id="compose" class="card" hidden>
+    <div class="compose-layout">
       <textarea id="note-input" placeholder="Write your note…" maxlength="150000" autofocus></textarea>
 
-      <div class="row">
-        <label for="ttl">Expires</label>
-        <select id="ttl">
-          <option value="burn" selected>After it's read (once)</option>
-          <option value="1h">1 hour</option>
-          <option value="1d">1 day</option>
-          <option value="7d">7 days</option>
-        </select>
+      <!-- Compose view -->
+      <section id="compose" class="card" hidden>
+
+        <div class="options-list">
+        <div class="option-row row">
+          <label for="ttl">Expires</label>
+          <select id="ttl">
+            <option value="burn" selected>After it's read (once)</option>
+            <option value="1h">1 hour</option>
+            <option value="1d">1 day</option>
+            <option value="7d">7 days</option>
+          </select>
+        </div>
+
+        <div class="option-row option-stack">
+          <div class="row">
+            <label id="password-toggle-label">Password protection</label>
+            <button type="button" id="password-toggle" class="toggle-btn" aria-pressed="false">Off</button>
+          </div>
+          <div id="password-field" class="password-field" hidden>
+            <input type="password" id="note-password" placeholder="Password" autocomplete="new-password" />
+            <button type="button" id="password-visibility-btn" class="ghost">Show</button>
+          </div>
+        </div>
+
+        <div class="option-row row">
+          <label for="note-image">Image (optional)</label>
+          <input type="file" id="note-image" accept="image/*" />
+        </div>
       </div>
 
-      <div class="row">
-        <label class="checkbox-label">
-          <input type="checkbox" id="password-toggle" />
-          Protect with a password
-        </label>
-      </div>
-      <div id="password-field" class="password-field" hidden>
-        <input type="password" id="note-password" placeholder="Password" autocomplete="new-password" />
-        <button type="button" id="password-visibility-btn" class="ghost">Show</button>
-      </div>
-
-      <div class="row">
-        <label for="note-image">Image (optional)</label>
-        <input type="file" id="note-image" accept="image/*" />
-      </div>
       <div id="note-image-preview-wrap" class="image-preview-wrap" hidden>
         <img id="note-image-preview" class="image-preview" alt="Selected image preview" />
         <button type="button" id="remove-image-btn" class="image-remove-btn" aria-label="Remove image">✕</button>
@@ -75,7 +80,8 @@
         <span id="create-btn-label">Encrypt &amp; create link</span>
       </button>
       <p id="compose-error" class="error" hidden></p>
-    </section>
+      </section>
+    </div>
 
     <!-- Result view -->
     <section id="result" class="card" hidden>

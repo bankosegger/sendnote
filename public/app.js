@@ -95,13 +95,19 @@
     const createBtnLabel = $('create-btn-label');
     const createBtnSpinner = $('create-btn-spinner');
 
-    passwordToggle.addEventListener('change', () => {
-      passwordField.hidden = !passwordToggle.checked;
-      if (!passwordToggle.checked) {
+    function setPasswordProtectionEnabled(enabled) {
+      passwordToggle.setAttribute('aria-pressed', String(enabled));
+      passwordToggle.textContent = enabled ? 'On' : 'Off';
+      passwordField.hidden = !enabled;
+      if (!enabled) {
         passwordInput.value = '';
       } else {
         passwordInput.focus();
       }
+    }
+
+    passwordToggle.addEventListener('click', () => {
+      setPasswordProtectionEnabled(passwordToggle.getAttribute('aria-pressed') !== 'true');
     });
 
     passwordVisibilityBtn.addEventListener('click', () => {
@@ -148,7 +154,7 @@
         return;
       }
 
-      const usePassword = passwordToggle.checked;
+      const usePassword = passwordToggle.getAttribute('aria-pressed') === 'true';
       const password = passwordInput.value;
 
       if (usePassword && !password) {
@@ -211,9 +217,7 @@
           : `${location.origin}/n/${id}#${keyFragment}`;
 
         input.value = '';
-        passwordToggle.checked = false;
-        passwordField.hidden = true;
-        passwordInput.value = '';
+        setPasswordProtectionEnabled(false);
         resetImagePicker();
         composeSection.hidden = true;
         showResult(link, ttl.value, Boolean(passwordMeta));
