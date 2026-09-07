@@ -26,9 +26,11 @@ Open `http://localhost:3000`.
 
 Other optional env vars: `PORT` (default 3000), `CREATE_RATE_LIMIT` /
 `READ_RATE_LIMIT` / `IMAGE_RATE_LIMIT` (per-IP limits, default 30 creates and
-20 image uploads per 15min, 60 reads/min), `CRON_SECRET` (authenticates the
-image-cleanup cron endpoint, see below), and `TRUST_PROXY=1` if you're
-putting it behind a reverse proxy.
+20 image uploads per 15min, 60 reads/min), `MAX_RESERVED_IMAGE_BYTES` (global
+Redis-backed image storage reservation cap, default 256 MiB), `CRON_SECRET`
+(authenticates the image-cleanup cron endpoint, see below), and `TRUST_PROXY=1`
+if you're putting it behind a reverse proxy. Set the reservation cap below
+your Blob storage limit so abuse cannot consume the whole store.
 
 ## Deploying to Vercel
 

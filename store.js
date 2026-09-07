@@ -26,10 +26,41 @@ const ttlKey = (id) => `ttl:${id}`;
 // when a burn note is read (see server.js) — so a note whose image is never
 // viewed still doesn't leak storage forever.
 const IMAGE_CLEANUP_KEY = 'image-cleanup:pending';
+const IMAGE_SIZE_PREFIX = 'image-size:';
+const IMAGE_RESERVED_BYTES_KEY = 'image-storage:reserved-bytes';
+const configuredMaxReservedImageBytes = Number(process.env.MAX_RESERVED_IMAGE_BYTES);
+const MAX_RESERVED_IMAGE_BYTES = Number.isFinite(configuredMaxReservedImageBytes) && configuredMaxReservedImageBytes > 0
+  ? Math.floor(configuredMaxReservedImageBytes)
+  : 256 * 1024 * 1024;
 
-async function scheduleImageCleanup(pathname, ttlSeconds) {
+async function reserveImageBytes(bytes) {
+  if (!Number.isInteger(bytes) || bytes <= 0 || bytes > MAX_RESERVED_IMAGE_BYTES) return false;
+
+  const reserved = await redis.incrby(IMAGE_RESERVED_BYTES_KEY, bytes);
+  if (reserved > MAX_RESERVED_IMAGE_BYTES) {
+    await redis.incrby(IMAGE_RESERVED_BYTES_KEY, -bytes);
+    return false;
+  }
+  return true;
+}
+
+async function releaseImageReservation(bytes) {
+  if (Number.isInteger(bytes) && bytes > 0) {
+    await redis.incrby(IMAGE_RESERVED_BYTES_KEY, -bytes);
+  }
+}
+
+async function releaseImageBytes(pathname) {
+  const size = await redis.getdel(`${IMAGE_SIZE_PREFIX}${pathname}`);
+  if (size === null) return;
+
+  await releaseImageReservation(Number(size));
+}
+
+async function scheduleImageCleanup(pathname, ttlSeconds, bytes) {
   const dueAt = Math.floor(Date.now() / 1000) + ttlSeconds;
   await redis.zadd(IMAGE_CLEANUP_KEY, { score: dueAt, member: pathname });
+  if (bytes !== undefined) await redis.set(`${IMAGE_SIZE_PREFIX}${pathname}`, bytes);
 }
 
 async function dueImageCleanups(limit = 100) {
@@ -39,6 +70,11 @@ async function dueImageCleanups(limit = 100) {
 
 async function clearImageCleanup(pathnames) {
   if (pathnames.length) await redis.zrem(IMAGE_CLEANUP_KEY, ...pathnames);
+}
+
+async function deleteImageReservation(pathname) {
+  await releaseImageBytes(pathname);
+  await clearImageCleanup([pathname]);
 }
 
 async function createNote(id, { ciphertext, iv, password, image }, mode) {
@@ -68,4 +104,14 @@ async function consumeNote(id) {
   return null;
 }
 
-module.exports = { createNote, consumeNote, scheduleImageCleanup, dueImageCleanups, clearImageCleanup };
+module.exports = {
+  createNote,
+  consumeNote,
+  scheduleImageCleanup,
+  dueImageCleanups,
+  clearImageCleanup,
+  reserveImageBytes,
+  deleteImageReservation,
+  releaseImageBytes,
+  releaseImageReservation,
+};

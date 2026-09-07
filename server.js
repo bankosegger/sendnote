@@ -99,17 +99,26 @@ app.post(
         return res.status(400).json({ error: 'image too large' });
       }
 
+      if (!(await store.reserveImageBytes(req.body.length))) {
+        return res.status(413).json({ error: 'image storage limit reached' });
+      }
+
       const burn = req.query.burn === '1';
       const pathname = `img/${burn ? 'burn' : 'ttl'}/${crypto.randomBytes(16).toString('hex')}`;
-      const blob = await put(pathname, req.body, {
-        access: 'private',
-        addRandomSuffix: true,
-        contentType: 'application/octet-stream',
-      });
+      try {
+        const blob = await put(pathname, req.body, {
+          access: 'private',
+          addRandomSuffix: true,
+          contentType: 'application/octet-stream',
+        });
 
-      await store.scheduleImageCleanup(blob.pathname, 3600);
+        await store.scheduleImageCleanup(blob.pathname, 3600, req.body.length);
 
-      res.json({ pathname: blob.pathname });
+        res.json({ pathname: blob.pathname });
+      } catch (err) {
+        await store.releaseImageReservation(req.body.length);
+        throw err;
+      }
     } catch (err) {
       next(err);
     }
@@ -138,7 +147,7 @@ app.get('/api/images', readLimiter, async (req, res, next) => {
     if (pathname.startsWith('img/burn/')) {
       try {
         await del(pathname);
-        await store.clearImageCleanup([pathname]);
+        await store.deleteImageReservation(pathname);
       } catch (err) {
         console.error('blob cleanup failed', err);
       }
@@ -264,6 +273,7 @@ app.get('/api/cron/cleanup-images', async (req, res, next) => {
     for (const pathname of pathnames) {
       try {
         await del(pathname);
+        await store.deleteImageReservation(pathname);
         deleted.push(pathname);
       } catch (err) {
         console.error('cron blob delete failed', pathname, err);
@@ -285,6 +295,9 @@ app.get('/healthz', (req, res) => {
 // land here as SyntaxError from the express.json parser; Redis failures land
 // here too).
 app.use((err, req, res, next) => {
+  if (err.type === 'entity.too.large') {
+    return res.status(413).json({ error: 'request body too large' });
+  }
   if (err.type === 'entity.parse.failed' || err instanceof SyntaxError) {
     return res.status(400).json({ error: 'malformed request body' });
   }
