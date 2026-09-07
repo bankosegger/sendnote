@@ -81,6 +81,7 @@
     composeSection.hidden = false;
 
     const input = $('note-input');
+    input.hidden = false;
     const ttl = $('ttl');
     const createBtn = $('create-btn');
     const errorEl = $('compose-error');
@@ -217,6 +218,7 @@
           : `${location.origin}/n/${id}#${keyFragment}`;
 
         input.value = '';
+        input.hidden = true;
         setPasswordProtectionEnabled(false);
         resetImagePicker();
         composeSection.hidden = true;
@@ -257,6 +259,7 @@
     newBtn.addEventListener('click', () => {
       resultSection.hidden = true;
       composeSection.hidden = false;
+      $('note-input').hidden = false;
     });
   }
 
