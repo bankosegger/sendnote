@@ -124,3 +124,7 @@ const SendNoteCrypto = (() => {
 
   return { encrypt, decrypt, decryptWithPassword, encryptBytes, decryptBytes };
 })();
+
+// Lets the CLI (bin/sendnote.js) reuse these exact helpers under Node, which
+// provides the same Web Crypto/btoa/atob globals. A no-op in the browser.
+if (typeof module !== 'undefined' && module.exports) module.exports = SendNoteCrypto;

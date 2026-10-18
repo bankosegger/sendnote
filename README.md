@@ -1,76 +1,64 @@
 # sendnote
 
-A tiny, self-destructing note sharer. Write a note, it's encrypted right in
-your browser (AES-256-GCM), and you get a link back. The server only ever
-sees ciphertext — the decryption key lives in the URL fragment, which never
-gets sent over the network. Notes are stored in Redis with a TTL matching
-whatever expiry you picked, so nothing lingers past its own expiration and
-nothing is ever written in plaintext anywhere. You can also attach an image,
-encrypted client-side the same way and stored in Vercel Blob rather than
-Redis (a Redis value has size limits that make it a poor fit for images).
+Self-destructing, end-to-end encrypted notes. Notes (and optional image
+attachments) are encrypted in the browser with AES-256-GCM; the key lives in
+the URL fragment and never reaches the server. Ciphertext is stored in Redis
+(notes, with a TTL matching the chosen expiry) and Vercel Blob (images).
 
-## Running it locally
+## Run locally
 
-You need a Redis database — Upstash's free tier works well and is REST-based,
-so there's nothing to install locally. Create one, copy `.env.example` to
-`.env`, and fill in the URL/token it gives you. Image attachments also need a
-Vercel Blob store (`BLOB_READ_WRITE_TOKEN`) — the app runs fine without one,
-you just won't be able to attach images. Then:
+Needs a Redis database (Upstash free tier works, REST-based). Copy
+`.env.example` to `.env` and fill in its credentials. Images additionally
+need `BLOB_READ_WRITE_TOKEN`; without it, everything else still works.
 
 ```
 npm install
-npm start
+npm start   # http://localhost:3000
 ```
 
-Open `http://localhost:3000`.
+| Env var | Default | Purpose |
+| --- | --- | --- |
+| `PORT` | `3000` | Listen port |
+| `CREATE_RATE_LIMIT` | 30 / 15 min | Per-IP note creations |
+| `IMAGE_RATE_LIMIT` | 20 / 15 min | Per-IP image uploads |
+| `READ_RATE_LIMIT` | 60 / min | Per-IP reads |
+| `MAX_RESERVED_IMAGE_BYTES` | 256 MiB | Global image storage cap; keep below your Blob limit |
+| `CRON_SECRET` | — | Authenticates `/api/cron/cleanup-images` |
+| `TRUST_PROXY` | — | Set `1` behind a reverse proxy so rate limits see real IPs |
 
-Other optional env vars: `PORT` (default 3000), `CREATE_RATE_LIMIT` /
-`READ_RATE_LIMIT` / `IMAGE_RATE_LIMIT` (per-IP limits, default 30 creates and
-20 image uploads per 15min, 60 reads/min), `MAX_RESERVED_IMAGE_BYTES` (global
-Redis-backed image storage reservation cap, default 256 MiB), `CRON_SECRET`
-(authenticates the image-cleanup cron endpoint, see below), and `TRUST_PROXY=1`
-if you're putting it behind a reverse proxy. Set the reservation cap below
-your Blob storage limit so abuse cannot consume the whole store.
+## CLI
 
-## Deploying to Vercel
+`bin/sendnote.js`: zero-dependency (Node 20+), shares `public/crypto.js` with
+the browser, so links are interchangeable. Install with `npm link`.
 
-1. In your Vercel project, go to Storage → add a Redis database (Marketplace
-   → Upstash for Redis, or Vercel KV if that's still offered on your
-   account), and add a Blob store for image attachments. Vercel wires the
-   credentials into your project's env vars automatically — no manual
-   copying needed in production.
-2. Push. `vercel.json` in this repo tells Vercel to run the whole app as one
-   function (`server.js`), with `public/` bundled alongside it. It also
-   registers a daily cron (`/api/cron/cleanup-images`) that deletes any
-   blob whose note has expired — set `CRON_SECRET` in the project's env vars
-   so nothing but Vercel Cron can trigger it.
-3. For local dev against the same database, run `vercel env pull .env` (or
-   just copy the values from the dashboard into `.env` yourself).
+```
+sendnote "the wifi password is hunter2"        # prints the link
+cat secrets.env | sendnote send --ttl 1h       # stdin; burn/1h/1d/7d
+sendnote send -p -i photo.jpg "see attached"   # password + image
+sendnote read "https://your-host/n/AbC...#key" # prints note, saves image
+```
 
-Note on rate limiting there: the limiter's counters live in each function
-instance's memory, and Vercel can spin up multiple instances or recycle them
-between requests — so on Vercel the limits act as a soft deterrent rather
-than a hard global cap. Fine for keeping casual abuse down; not a guarantee.
+Server: `--server <url>` or `SENDNOTE_URL` (default `http://localhost:3000`);
+`read` uses the link's host. Password: no-echo prompt or `SENDNOTE_PASSWORD`.
+Only the link/note goes to stdout. See `sendnote --help`.
 
-## Deploying elsewhere
+## Deploy
 
-Works the same way anywhere that runs Node: point `KV_REST_API_URL` /
-`KV_REST_API_TOKEN` (or `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`)
-at your Redis instance and run `npm start`. Put it behind something that
-terminates HTTPS (Caddy is the easiest — a couple lines and it handles certs
-for you); without TLS in front, the ciphertext travels over an unencrypted
-connection, which defeats a chunk of the point. Run it under `systemd`,
-`pm2`, or a container with `restart: always` — there's a `/healthz` endpoint
-for that — and set `TRUST_PROXY=1` if it's behind a reverse proxy, so rate
-limiting sees real client IPs. On a single long-running process like this,
-the rate limiter's counters are actually global and reliable (unlike the
-Vercel case above).
+**Vercel:** add a Redis database (Upstash for Redis / Vercel KV) and a Blob
+store under Storage; credentials are injected automatically. Set
+`CRON_SECRET`, then push. `vercel.json` runs `server.js` as one function and
+schedules a daily cron deleting blobs of expired notes. Use
+`vercel env pull .env` for local dev. Rate-limit counters are per-instance
+memory, so on Vercel they're a soft deterrent, not a global cap.
 
-## What's already handled, what isn't
+**Elsewhere (any Node host):** set `KV_REST_API_URL` / `KV_REST_API_TOKEN`
+(or `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`), run `npm start`
+under systemd/pm2/a container (health check: `/healthz`), and terminate HTTPS
+in front (e.g. Caddy). Set `TRUST_PROXY=1`. Rate limits are global and
+reliable on a single process.
 
-Baked in: rate limits, locked-down security headers/CSP, and note text is
-only ever rendered as plain text (no `innerHTML`), so there's no
-script-injection angle through note content. What it doesn't have is any
-notion of accounts, moderation, or abuse reporting — it's a pastebin-shaped
-tool, so if you put it in front of the public internet, you're the one
-responsible for what people send through it.
+## Scope
+
+Included: rate limits, strict security headers/CSP, note text rendered as
+plain text only (no `innerHTML`). Not included: accounts, moderation, abuse
+reporting. If public, you're responsible for what gets sent through it.
