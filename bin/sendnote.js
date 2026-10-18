@@ -13,7 +13,9 @@ const { version } = require('../package.json');
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024; // must match server.js
 const TTL_OPTIONS = ['burn', '1h', '1d', '7d']; // must match server.js
 const TTL_LABELS = { '1h': '1 hour', '1d': '1 day', '7d': '7 days' };
-const DEFAULT_SERVER = 'http://localhost:3000';
+// The standalone build served at /cli.js (see server.js) sets this global to
+// the origin it was downloaded from, so an installed CLI needs no config.
+const DEFAULT_SERVER = globalThis.SENDNOTE_DEFAULT_SERVER || 'https://sendnote.vercel.app';
 
 const USAGE = `sendnote ${version} - zero-knowledge encrypted note sharing
 
@@ -45,7 +47,7 @@ Examples:
   sendnote "the wifi password is hunter2"
   cat secrets.env | sendnote send --ttl 1h
   sendnote send -p -i photo.jpg "see attached"
-  sendnote read "https://example.com/n/AbC...#key"
+  sendnote read "https://sendnote.vercel.app/n/AbC...#key"
 `;
 
 class CliError extends Error {}

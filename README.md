@@ -29,16 +29,30 @@ npm start   # http://localhost:3000
 ## CLI
 
 `bin/sendnote.js`: zero-dependency (Node 20+), shares `public/crypto.js` with
-the browser, so links are interchangeable. Install with `npm link`.
+the browser, so links are interchangeable. Install from any deployment:
+
+```
+curl -fsSL https://sendnote.vercel.app/install.sh | sh     # macOS/Linux -> ~/.local/bin
+irm https://sendnote.vercel.app/install.ps1 | iex          # Windows -> %LOCALAPPDATA%\sendnote, added to PATH
+```
+
+The server generates `/cli.js` (a standalone build with `crypto.js` inlined)
+and both scripts with its own origin baked in, so the installed CLI talks to
+that server by default. Installer env overrides: `SENDNOTE_INSTALL_DIR`,
+`SENDNOTE_URL`, and `SENDNOTE_NO_MODIFY_PATH=1` (Windows). To uninstall,
+delete the installed file (and on Windows remove the dir from your PATH). From
+a checkout, `npm link` works too.
 
 ```
 sendnote "the wifi password is hunter2"        # prints the link
 cat secrets.env | sendnote send --ttl 1h       # stdin; burn/1h/1d/7d
 sendnote send -p -i photo.jpg "see attached"   # password + image
-sendnote read "https://your-host/n/AbC...#key" # prints note, saves image
+sendnote read "https://sendnote.vercel.app/n/AbC...#key" # prints note, saves image
 ```
 
-Server: `--server <url>` or `SENDNOTE_URL` (default `http://localhost:3000`);
+Server: `--server <url>` or `SENDNOTE_URL` (default: the host it was installed
+from, or `https://sendnote.vercel.app` from a checkout; use
+`SENDNOTE_URL=http://localhost:3000` for local dev);
 `read` uses the link's host. Password: no-echo prompt or `SENDNOTE_PASSWORD`.
 Only the link/note goes to stdout. See `sendnote --help`.
 
